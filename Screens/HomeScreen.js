@@ -1,10 +1,10 @@
 import React,{useRef,useState,useEffect} from 'react';
-import {View,StyleSheet,Dimensions,Image,Linking, TouchableOpacity, Text,Platform} from 'react-native';
+import {View,StyleSheet,Dimensions,Image,Linking, TouchableOpacity,Alert, Text,Platform} from 'react-native';
 import MapView from 'react-native-maps';
 import MapViewDirections from "react-native-maps-directions";
 import LocationEnabler from 'react-native-android-location-enabler';
 import GetLocation from 'react-native-get-location';
-
+import {requestPermission,ANDROID_LOCATION_PERMISSION,IOS_LOCATION_PERMISSION,checkPermission} from '../Utils/PermissionUtils';
 
 const HomeScreen=props=>{
 
@@ -26,25 +26,25 @@ const HomeScreen=props=>{
     }
 
     const [coordinate,setcoordinate]=useState({
-        latitude:0,
-        longitude:0
+        latitude:21.6417,
+        longitude:69.6395
     })
 
-const checkPermission=async()=>{
-    const locationPermissionRes = await PermissionUtils.checkPermission(
+const checkPermissions=async()=>{
+    const locationPermissionRes = await checkPermission(
         Platform.select({
-            android: PermissionUtils.ANDROID_LOCATION_PERMISSION,
-            ios: PermissionUtils.IOS_LOCATION_PERMISSION,
+            android: ANDROID_LOCATION_PERMISSION,
+            ios: IOS_LOCATION_PERMISSION,
         })
     );
 
     if (locationPermissionRes == "granted") {
         getUserCurrentLocationHandler();
     } else {
-        const requestPermissionRes = await PermissionUtils.requestPermission(
+        const requestPermissionRes = await requestPermission(
             Platform.select({
-                android: PermissionUtils.ANDROID_LOCATION_PERMISSION,
-                ios: PermissionUtils.IOS_LOCATION_PERMISSION,
+                android: ANDROID_LOCATION_PERMISSION,
+                ios: IOS_LOCATION_PERMISSION,
             })
         );
 
@@ -54,6 +54,7 @@ const checkPermission=async()=>{
                 break;
             case "denied":
                 Toast("Permission Denied.");
+                openSettingsHandler();
                 break;
             case "blocked":
                 openSettingsHandler();
@@ -68,6 +69,37 @@ const checkPermission=async()=>{
     }
     return;
 }
+
+
+const getUserCurrentLocationHandler=()=>{
+    LocationEnabler.promptForEnableLocationIfNeeded({
+        interval:1000,
+        fastInterval:5000
+    }).then((data)=>{
+        console.log("Location Enable Data === > ",data);
+        if(data==='already-enabled' || data==='enabled'){
+            GetLocation.getCurrentPosition({
+                enableHighAccuracy:true,
+                timeout:15000
+            }).then((locationData)=>{
+                console.log("My Data :",locationData);
+                // coordinate[0].latitude=locationData.latitude;
+                // coordinate[0].longitude=locationData.longitude;
+                setcoordinate({
+                    ...coordinate,
+                    latitude:locationData.latitude,
+                    longitude:locationData.longitude})
+                // setcoordinate([...coordinate,{latitude:locationData.latitude,longitude:locationData.longitude}])
+            }).catch(err=>{
+                console.log("Message      ",err);
+
+            })
+        }
+    }).catch((err)=>{
+        console.log("Error ===>  ",err)
+        openSettingsHandler();
+    });
+
 }
 
 const openSettingsHandler = async () => {
@@ -100,36 +132,9 @@ const openSettingsHandler = async () => {
 };
 
     useEffect(()=>{
-        checkPermission();
-        LocationEnabler.promptForEnableLocationIfNeeded({
-            interval:1000,
-            fastInterval:5000
-        }).then((data)=>{
-            console.log("Location Enable Data === > ",data);
-            if(data==='already-enabled' || data==='enabled'){
-                GetLocation.getCurrentPosition({
-                    enableHighAccuracy:true,
-                    timeout:15000
-                }).then((locationData)=>{
-                    console.log("My Data :",locationData);
-                    // coordinate[0].latitude=locationData.latitude;
-                    // coordinate[0].longitude=locationData.longitude;
-                    setcoordinate({
-                        ...coordinate,
-                        latitude:locationData.latitude,
-                        longitude:locationData.longitude})
-                    // setcoordinate([...coordinate,{latitude:locationData.latitude,longitude:locationData.longitude}])
-                }).catch(err=>{
-                    console.log("Message      ",err);
-
-                })
-            }
-        }).catch((err)=>{
-            console.log("Error ===>  ",err)
-            openSettingsHandler();
-        });
-
-    },[])
+        checkPermissions();
+       
+    },[checkPermissions])
 
     const getData=value=>{
         console.log("get Data :",value);
@@ -185,7 +190,7 @@ const openSettingsHandler = async () => {
                 </MapView.Callout>
             </MapView.Marker>
             
-            <MapView.Marker key={coordinate} coordinate={coordinate}>
+            <MapView.Marker key={coordinate.latitude} coordinate={coordinate}>
                 <Image source={require('../assets/pin_icon1.png')} resizeMode='contain' style={{height:30,width:30}} />
                 <MapView.Callout tooltip style={{minWidth:100,maxWidth:200,backgroundColor:'white'}}>
                     <TouchableOpacity>
